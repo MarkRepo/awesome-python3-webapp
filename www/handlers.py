@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 __author__ = 'Mark Wu'
@@ -8,7 +8,7 @@ import re, time, json, logging, hashlib, base64, asyncio
 import markdown2
 from aiohttp import web
 from coroweb import get, post
-from apis import Page , APIValueError, APIResourceNotFoundError
+from apis import Page , APIValueError, APIResourceNotFoundError, APIPermissionError
 from models import User,Comment, Blog, next_id
 from config import configs
 
@@ -35,7 +35,7 @@ def user2cookie(user, max_age):
     '''
     #build cookie string by: id_expires-sha1
     expires = str(int(time.time()+max_age))
-    s = '%s-%s-%s-%s' % (user.id, user.passwd, expires, __COOKIE_KEY)
+    s = '%s-%s-%s-%s' % (user.id, user.passwd, expires, _COOKIE_KEY)
     L = [user.id, expires, hashlib.sha1(s.encode('utf-8')).hexdigest()]
     return '-'.join(L)
 
@@ -60,7 +60,7 @@ def cookie2user(cookie_str):
         user = yield from User.find(uid)
         if user is None:
             return None
-        s = '%s-%s-%s-%s' % (uid, user.passwd, expires, __COOKIE_KEY)
+        s = '%s-%s-%s-%s' % (uid, user.passwd, expires, _COOKIE_KEY)
         if sha1 != hashlib.sha1(s.encode('utf-8')).hexdigest():
             logging.info('invalid sha1')
             return None
@@ -78,7 +78,7 @@ def index(*, page='1'):
     if num == 0:
         blogs = []
     else:
-        blogs = yield from Blog.findAll(orderBy='created_at desc', limit(page.offset, page.limit))
+        blogs = yield from Blog.findAll(orderBy='created_at desc', limit=(page.offset, page.limit))
     return {
             '__template__': 'blogs.html',
             'page':page,
@@ -190,7 +190,7 @@ def api_comments(*, page='1'):
     num = yield from Comment.findNumber('count(id)')
     p = Page(num, page_index)
     if num == 0:
-        return dict(page=p, comments())
+        return dict(page=p, comments=())
     comments = yield from Comment.findAll(orderBy='created_at desc', limit=(p.offset, p.limit))
     return dict(page=p, comments=comments)
 
@@ -221,7 +221,7 @@ def api_delete_comments(id, request):
 def api_get_users(*, page='1'):
     page_index = get_page_index(page)
     num = yield from User.findNumber('count(id)')
-    p = Page(num, page_index)
+    p = Page(num, page_index, 10)
     if num == 0:
         return dict(page=p, users=())
     users = yield from User.findAll(orderBy='created_at desc', limit=(p.offset, p.limit))
@@ -229,7 +229,7 @@ def api_get_users(*, page='1'):
         u.passwd = '******'
     return dict(page=p, users=users)
 
-_RE_EMAIL =  re.compile(r'^[a-z0-9\.\-\_]+(\.[a-z0-9\-\_]+){1,4}$')
+_RE_EMAIL =  re.compile(r'^[a-z0-9\.\-\_]+\@[a-z0-9\-\_]+(\.[a-z0-9\-\_]+){1,4}$')
 _RE_SHA1 = re.compile(r'^[0-9a-f]{40}$')
 
 @post('/api/users')
@@ -237,7 +237,7 @@ def api_register_user(*, email, name, passwd):
     if not name or not name.strip():
         raise APIValueError('name')
     if not email or not _RE_EMAIL.match(email):
-        raise APIDValueError('email')
+        raise APIValueError('email')
     if not passwd or not _RE_SHA1.match(passwd):
         raise APIValueError('passwd')
     users = yield from User.findAll('email=?', [email])
@@ -249,7 +249,7 @@ def api_register_user(*, email, name, passwd):
     yield from user.save()
     #make session cookie:
     r = web.Response()
-    r.set_cookie(COOKIE_NAME, suer2cookie(user, 86400), max_age=86400, httponly = True)
+    r.set_cookie(COOKIE_NAME, user2cookie(user, 86400), max_age=86400, httponly = True)
     user.passwd = '******'
     r.content_type='application/json'
     r.body = json.dumps(user, ensure_ascii=False).encode('utf-8')
@@ -286,7 +286,7 @@ def api_create_blog(request, *, name, summary, content):
 @post('/api/blogs/{id}')
 def api_update_blog(id, request, *, name, summary, content):
     check_admin(request)
-    blog = yield from Blog.find()jidd
+    blog = yield from Blog.find(id)
     if not name or not name.strip():
         raise APIValueError('name', 'name cannot be empty.')
     if not summary or not summary.strip():

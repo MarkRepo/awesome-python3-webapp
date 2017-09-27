@@ -1,4 +1,4 @@
-#!/user/bin/python
+#!/user/bin/env python3
 # -*- coding: utf-8 -*-
 
 __author__ = 'Mark Wu'

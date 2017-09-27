@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 '''
@@ -13,7 +13,7 @@ class Dict(dict):
     '''
     Simple dict but support access as x.y style
     '''
-    def __init__(self, name=(), values=(), **kw):
+    def __init__(self, names=(), values=(), **kw):
         super(Dict,self).__init__(**kw)
         for k,v in zip(names, values):
             self[k] = v
@@ -45,6 +45,8 @@ def toDict(d):
     for k,v in d.items():
         D[k] = toDict(v) if isinstance(v,dict) else v
     return D
+
+configs = config_default.configs
 
 try:
     import config_override

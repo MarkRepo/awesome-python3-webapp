@@ -1,9 +1,9 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 __author__ = 'Mark Wu'
 
-import asyncio, os, inspect logging, functools
+import asyncio, os, inspect, logging, functools
 
 from urllib import parse
 from aiohttp import web
@@ -72,7 +72,7 @@ def has_request_arg(fn):
         if name == 'request':
             found = True
             continue
-        if found and (param.kind != inspect.Parameter.VAR_POSITINAL and param.kind != inspect.Parameter.KEYWORD_ONLY and param.kind != inspect.Parameter.VAR_KEYWORD):
+        if found and (param.kind != inspect.Parameter.VAR_POSITIONAL and param.kind != inspect.Parameter.KEYWORD_ONLY and param.kind != inspect.Parameter.VAR_KEYWORD):
             raise ValueError('request parameter must be the last named parameter in function: %s%s' % (fn.__name__, str(sig)))
     return found
 
@@ -107,7 +107,7 @@ class RequestHandler(object):
                 else:
                     return web.HTTPBadRequest('Unsupported Content-Type: %s' % request.content_type)
             
-            if request.methon == 'GET':
+            if request.method == 'GET':
                 qs = request.query_string
                 if qs:
                     kw = dict()
@@ -120,7 +120,7 @@ class RequestHandler(object):
             if not self._has_var_kw_arg and self._named_kw_args:
                 #remove all unamed kw:
                 copy = dict()
-                for name in self._name_kw_args:
+                for name in self._named_kw_args:
                     if name in kw:
                         copy[name] = kw[name]
                 kw = copy
